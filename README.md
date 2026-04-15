@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # 🔍 Campus Lost & Found Portal
 
 A full-stack web application for campus communities to report and find lost items. Built with modern technologies and featuring a beautiful glass-morphism UI design.
