@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # 🔍 Campus Lost & Found Portal
 
 A full-stack web application for campus communities to report and find lost items. Built with modern technologies and featuring a beautiful glass-morphism UI design.
@@ -313,3 +314,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ⭐ If you found this project helpful, please give it a star!
+=======
+# Campus_Lost_Found
+>>>>>>> cc7f54b44f50ed9d7f0f05e1e2993c95cd51c165
