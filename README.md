@@ -13,6 +13,7 @@ A full-stack web application for campus communities to report and find lost item
 - 🔍 **Smart Search & Filters** - Search by category, location, type, and keywords
 - 📷 **Multi-Image Upload** - Upload up to 5 images per item via Cloudinary
 - ✅ **Claim System** - Submit claims with verification questions
+- 🔔 **Real-Time Notifications** - Instant WebSockets alerts via Socket.io
 - 📧 **Email Notifications** - Get notified on matches and claim status updates
 - 👤 **User Authentication** - Secure JWT-based authentication
 - 🛡️ **Admin Dashboard** - Moderate content and manage users
@@ -35,6 +36,7 @@ A full-stack web application for campus communities to report and find lost item
 - **Lucide React** - Icons
 - **React Dropzone** - File uploads
 - **React Hot Toast** - Notifications
+- **Socket.io Client** - WebSockets
 
 ### Backend
 - **Node.js** - Runtime
@@ -45,6 +47,7 @@ A full-stack web application for campus communities to report and find lost item
 - **Bcrypt** - Password hashing
 - **Cloudinary** - Image storage
 - **Nodemailer** - Emails
+- **Socket.io** - WebSockets
 - **Express Validator** - Validation
 
 ## 📁 Project Structure
@@ -55,7 +58,8 @@ campus-lost-found/
 │   ├── config/
 │   │   ├── db.js              # MongoDB connection
 │   │   ├── cloudinary.js      # Cloudinary setup
-│   │   └── email.js           # Email configuration
+│   │   ├── email.js           # Email configuration
+│   │   └── socket.js          # Socket.io configuration
 │   ├── controllers/
 │   │   ├── authController.js
 │   │   ├── itemController.js
@@ -298,9 +302,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👨‍💻 Author
 
-**Your Name**
-- GitHub: [@yourusername](https://github.com/Jhas876622)
-- LinkedIn: [Your Name](https://linkedin.com/in/yourprofile)
+**Satyam Kumar Jha**
+- GitHub: [Jhas876622](https://github.com/Jhas876622)
+- LinkedIn: [Satyam Kumar Jha](https://www.linkedin.com/in/satyam-kumar-jha-27545a288)
 
 ## 🙏 Acknowledgements
 
@@ -313,3 +317,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 ⭐ If you found this project helpful, please give it a star!
+
+
+[def]: https://github.com/Jhas876622
