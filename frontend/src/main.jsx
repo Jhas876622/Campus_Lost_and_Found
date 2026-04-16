@@ -4,14 +4,16 @@ import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
 import { AuthProvider } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import './styles/index.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
       <AuthProvider>
-        <App />
-        <Toaster
+        <SocketProvider>
+          <App />
+          <Toaster
           position="top-right"
           toastOptions={{
             duration: 4000,
@@ -35,6 +37,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
             },
           }}
         />
+        </SocketProvider>
       </AuthProvider>
     </BrowserRouter>
   </React.StrictMode>

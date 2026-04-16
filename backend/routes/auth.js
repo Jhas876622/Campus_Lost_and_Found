@@ -13,6 +13,25 @@ const {
   resetPassword,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+
+// BUG-D FIX: Dedicated tight rate limiter for sensitive auth endpoints.
+// The global API limiter allows 100 req/15min — enough for a dictionary attack on login.
+// This drops sensitive endpoints to 10 req/15min per IP.
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many attempts. Please try again in 15 minutes.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    const ip = req.ip || req.connection?.remoteAddress;
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+  },
+});
 
 // Validation middleware
 const registerValidation = [
@@ -66,13 +85,13 @@ const validate = (req, res, next) => {
 };
 
 // Routes
-router.post('/register', registerValidation, validate, register);
-router.post('/login', loginValidation, validate, login);
+router.post('/register', authLimiter, registerValidation, validate, register);
+router.post('/login', authLimiter, loginValidation, validate, login);
 router.get('/me', protect, getMe);
 router.put('/profile', protect, updateProfile);
 router.put('/password', protect, updatePassword);
 router.post('/logout', protect, logout);
-router.post('/forgot-password', forgotPassword);
+router.post('/forgot-password', authLimiter, forgotPassword);
 router.put('/reset-password/:token', resetPassword);
 
 module.exports = router;

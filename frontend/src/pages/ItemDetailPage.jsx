@@ -44,11 +44,7 @@ const ItemDetailPage = () => {
 
   const [reportReason, setReportReason] = useState('');
 
-  useEffect(() => {
-    fetchItem();
-  }, [id]);
-
-  const fetchItem = async () => {
+  const fetchItem = useCallback(async () => {
     try {
       const response = await itemsAPI.getOne(id);
       setItem(response.data.data.item);
@@ -58,7 +54,11 @@ const ItemDetailPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id, navigate]);
+
+  useEffect(() => {
+    fetchItem();
+  }, [fetchItem]);
 
   const handleClaimSubmit = async (e) => {
     e.preventDefault();
@@ -119,7 +119,8 @@ const ItemDetailPage = () => {
 
   const category = getCategoryInfo(item.category);
   const location = getLocationInfo(item.location);
-  const isOwner = user && item.postedBy?._id === user.id;
+  // BUG-G FIX: Compare id as string, not ObjectId vs string
+  const isOwner = user && item.postedBy?._id?.toString() === user.id;
   const hasUserClaimed = item.claims?.some(
     (claim) => claim.claimant?._id === user?.id && claim.status !== 'cancelled'
   );

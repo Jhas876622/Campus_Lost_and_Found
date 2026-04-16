@@ -2,6 +2,7 @@ const Item = require('../models/Item');
 const College = require('../models/College');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
+const { getIO } = require('../config/socket');
 const { sendEmail, emailTemplates } = require('../config/email');
 
 // @desc    Get all items (college-specific)
@@ -106,9 +107,13 @@ exports.getItem = asyncHandler(async (req, res) => {
     throw new AppError('Item not found', 404);
   }
 
-  // Increment views
-  item.views += 1;
-  await item.save();
+  // BUG-9 & BUG-F FIX: Only increment views for non-owners using atomic $inc
+  const viewerId = req.user?._id?.toString();
+  const ownerId = item.postedBy?._id?.toString() || item.postedBy?.toString();
+  if (viewerId !== ownerId) {
+    await Item.findByIdAndUpdate(item._id, { $inc: { views: 1 } });
+    item.views += 1; // Update local object for response
+  }
 
   res.status(200).json({
     success: true,
@@ -143,17 +148,35 @@ exports.createItem = asyncHandler(async (req, res) => {
   const matches = await Item.findMatches(item);
   if (matches.length > 0) {
     for (const match of matches.slice(0, 5)) {
-      const matchOwner = await Item.findById(match._id).populate('postedBy');
-      if (matchOwner?.postedBy?.email && 
-          matchOwner.postedBy.notificationPreferences?.emailOnMatch !== false) {
+      // BUG-E FIX: Eliminate N+1 query. match is already an Item document. 
+      // Just populate postedBy if missing additional fields instead of fetching the whole item again.
+      await match.populate('postedBy');
+      
+      if (match.postedBy) {
+        // Emit real-time notification
         try {
-          await sendEmail({
-            to: matchOwner.postedBy.email,
-            subject: 'Potential Match Found!',
-            html: emailTemplates.itemMatch(matchOwner.postedBy.name, item, match),
+          const io = getIO();
+          io.to(match.postedBy._id.toString()).emit('new_notification', {
+            type: 'potential_match',
+            message: `A potential match was just posted for your item!`,
+            itemId: item._id,
+            matchId: match._id,
           });
-        } catch (emailError) {
-          console.error('Failed to send match email:', emailError);
+        } catch (err) {
+          console.error('Socket emission failed:', err.message);
+        }
+
+        if (match.postedBy.email && 
+            match.postedBy.notificationPreferences?.emailOnMatch !== false) {
+          try {
+            await sendEmail({
+              to: match.postedBy.email,
+              subject: 'Potential Match Found!',
+              html: emailTemplates.itemMatch(match.postedBy.name, item, match),
+            });
+          } catch (emailError) {
+            console.error('Failed to send match email:', emailError);
+          }
         }
       }
     }

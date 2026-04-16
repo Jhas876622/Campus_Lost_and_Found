@@ -25,7 +25,10 @@ export const useFetch = (fetchFn, dependencies = [], immediate = true) => {
     if (immediate) {
       execute();
     }
-  }, dependencies);
+    // BUG-J FIX: Include execute and immediate to prevent stale closures, 
+    // while spreading the user-provided dependencies.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [...dependencies, execute, immediate]);
 
   return { data, loading, error, execute, setData };
 };

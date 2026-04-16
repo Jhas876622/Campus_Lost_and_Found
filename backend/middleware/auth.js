@@ -36,6 +36,15 @@ const protect = async (req, res, next) => {
         });
       }
 
+      // BUG-A FIX: Reject deactivated accounts immediately.
+      // Without this, banned users keep full access for up to 7 days (JWT lifetime).
+      if (!user.isActive) {
+        return res.status(401).json({
+          success: false,
+          message: 'Your account has been deactivated. Please contact support.',
+        });
+      }
+
       // Attach user to request
       req.user = user;
       next();

@@ -7,6 +7,18 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const { errorHandler, notFound } = require('./middleware/errorHandler');
+const { initSocket } = require('./config/socket');
+
+// BUG-B FIX: Validate critical environment variables at startup.
+// If JWT_SECRET is missing, jwt.sign() uses the string 'undefined' as the secret,
+// meaning ALL tokens share the same trivially-known 'secret'. This is catastrophic.
+const REQUIRED_ENV_VARS = ['MONGODB_URI', 'JWT_SECRET'];
+const missingVars = REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+if (missingVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`);
+  console.error('   Please check your .env file. Exiting.');
+  process.exit(1);
+}
 
 // Route imports
 const authRoutes = require('./routes/auth');
@@ -66,8 +78,11 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// BUG-C FIX: Reduced JSON limit from 10mb to 100kb.
+// A 10mb JSON body is a memory-spike attack vector. File uploads go through
+// multer (with its own limits), so the JSON parser never needs more than ~100kb.
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -134,6 +149,9 @@ const server = app.listen(PORT, () => {
 📚 API docs: http://localhost:${PORT}/api
   `);
 });
+
+// Initialize Socket.io with the running HTTP server
+initSocket(server);
 
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err, promise) => {

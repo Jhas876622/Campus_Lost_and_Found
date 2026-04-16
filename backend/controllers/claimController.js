@@ -4,6 +4,7 @@ const User = require('../models/User');
 const { asyncHandler, AppError } = require('../middleware/errorHandler');
 const { sendEmail, emailTemplates } = require('../config/email');
 const { uploadToCloudinary } = require('../config/cloudinary');
+const { getIO } = require('../config/socket');
 
 // @desc    Create a claim for an item
 // @route   POST /api/claims
@@ -58,7 +59,20 @@ const createClaim = asyncHandler(async (req, res, next) => {
   });
 
   // Populate claim for response
-  await claim.populate('claimant', 'name email avatar');
+  await claim.populate('claimant', 'name email phone');
+
+  // Emit real-time notification to the item owner
+  try {
+    const io = getIO();
+    io.to(item.postedBy._id.toString()).emit('new_notification', {
+      type: 'new_claim',
+      message: `Someone just claimed your item: ${item.title}`,
+      claimId: claim._id,
+      itemId: item._id,
+    });
+  } catch (err) {
+    console.error('Socket emission failed:', err.message);
+  }
 
   // Send email notification to item owner
   try {
@@ -196,10 +210,24 @@ const updateClaimStatus = asyncHandler(async (req, res, next) => {
     await claim.reject(req.user.id, reviewNotes);
   }
 
+  // Emit real-time notification to the claimant
+  try {
+    const io = getIO();
+    io.to(claim.claimant._id.toString()).emit('new_notification', {
+      type: 'claim_status_update',
+      message: `Your claim for ${item.title} has been ${status}`,
+      claimId: claim._id,
+      itemId: item._id,
+      status: status,
+    });
+  } catch (err) {
+    console.error('Socket emission failed:', err.message);
+  }
+
   // Send email notification to claimant
   try {
     const statusEmail = emailTemplates.claimStatusUpdate(
-      claim.claimant,
+      claim.claimant.name,
       item,
       status
     );

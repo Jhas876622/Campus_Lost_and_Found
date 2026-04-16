@@ -98,6 +98,10 @@ const PostItemPage = () => {
 
       const response = await itemsAPI.create(data);
       toast.success('Item posted successfully!');
+      
+      // BUG-I FIX: Revoke object URLs before navigating away to prevent memory leaks
+      images.forEach((img) => URL.revokeObjectURL(img.preview));
+      
       navigate(`/items/${response.data.data.item._id}`);
     } catch (error) {
       toast.error(error.message || 'Failed to post item');
@@ -403,7 +407,10 @@ const PostItemPage = () => {
           <div className="flex gap-4">
             <button
               type="button"
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                images.forEach((img) => URL.revokeObjectURL(img.preview));
+                navigate(-1);
+              }}
               className="btn-secondary flex-1"
             >
               Cancel
