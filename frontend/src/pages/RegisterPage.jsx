@@ -1,23 +1,49 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { User, Mail, Lock, Eye, EyeOff, Phone, Building, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 const RegisterPage = () => {
+  const { register, loginWithGoogle } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const googleData = location.state?.googleData;
+  const credential = location.state?.credential;
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
+    name: googleData?.name || '',
+    email: googleData?.email || '',
     password: '',
     confirmPassword: '',
     phone: '',
     department: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const { register } = useAuth();
-  const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    try {
+      const res = await loginWithGoogle(credentialResponse.credential);
+      if (res?.action === 'REQUIRE_COLLEGE') {
+        toast('Almost there! Please select your college to finish signing up.', { icon: '🎓' });
+        navigate('/register', { state: { googleData: res.data, credential: credentialResponse.credential } });
+      } else {
+        toast.success('Welcome back!');
+        navigate('/');
+      }
+    } catch (error) {
+      toast.error(error.message || 'Google Sign-Up failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error('Google Sign-Up failed');
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,14 +52,15 @@ const RegisterPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (formData.password !== formData.confirmPassword) {
-      toast.error('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
+    if (!credential) {
+      if (formData.password !== formData.confirmPassword) {
+        toast.error('Passwords do not match');
+        return;
+      }
+      if (formData.password.length < 6) {
+        toast.error('Password must be at least 6 characters');
+        return;
+      }
     }
 
     setLoading(true);
@@ -53,8 +80,13 @@ const RegisterPage = () => {
         return;
       }
 
-      await register(data);
-      toast.success('Account created successfully!');
+      if (credential) {
+        await loginWithGoogle(credential, data);
+        toast.success('Account created successfully via Google!');
+      } else {
+        await register(data);
+        toast.success('Account created successfully!');
+      }
       navigate('/');
     } catch (error) {
       toast.error(error.message || 'Registration failed');
@@ -78,14 +110,40 @@ const RegisterPage = () => {
       >
         <div className="glass-card p-8">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-3xl font-display font-bold text-white mb-2">
               Create Account
             </h1>
             <p className="text-gray-400">
-              Join our campus community today
+              {credential ? 'Just a few more details to complete your profile' : 'Join our campus community today'}
             </p>
           </div>
+
+          {!credential && (
+            <>
+              <div className="flex justify-center mb-6">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  shape="pill"
+                  theme="outline"
+                  size="large"
+                  text="signup_with"
+                  context="use"
+                  width="100%"
+                />
+              </div>
+
+              <div className="relative mb-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-gray-700"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                  <span className="px-2 text-gray-400" style={{ background: 'inherit' }}>Or register with email</span>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -101,7 +159,8 @@ const RegisterPage = () => {
                   onChange={handleChange}
                   placeholder="John Doe"
                   required
-                  className="input-field pl-10"
+                  readOnly={!!credential}
+                  className={`input-field pl-10 ${credential ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
               </div>
             </div>
@@ -118,7 +177,8 @@ const RegisterPage = () => {
                   onChange={handleChange}
                   placeholder="you@college.edu"
                   required
-                  className="input-field pl-10"
+                  readOnly={!!credential}
+                  className={`input-field pl-10 ${credential ? 'opacity-50 cursor-not-allowed' : ''}`}
                 />
               </div>
             </div>
@@ -156,47 +216,51 @@ const RegisterPage = () => {
               </div>
             </div>
 
-            {/* Password */}
-            <div>
-              <label className="input-label">Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="••••••••"
-                  required
-                  minLength={6}
-                  className="input-field pl-10 pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
-                >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                </button>
-              </div>
-            </div>
+            {!credential && (
+              <>
+                {/* Password */}
+                <div>
+                  <label className="input-label">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="password"
+                      value={formData.password}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      required
+                      minLength={6}
+                      className="input-field pl-10 pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                    >
+                      {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
 
-            {/* Confirm Password */}
-            <div>
-              <label className="input-label">Confirm Password</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  name="confirmPassword"
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  placeholder="••••••••"
-                  required
-                  className="input-field pl-10"
-                />
-              </div>
-            </div>
+                {/* Confirm Password */}
+                <div>
+                  <label className="input-label">Confirm Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      name="confirmPassword"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      placeholder="••••••••"
+                      required
+                      className="input-field pl-10"
+                    />
+                  </div>
+                </div>
+              </>
+            )}
 
             {/* Submit Button */}
             <button

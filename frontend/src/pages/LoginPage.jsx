@@ -4,13 +4,36 @@ import { motion } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { toast } from 'react-hot-toast';
+import { GoogleLogin } from '@react-oauth/google';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const handleGoogleSuccess = async (credentialResponse) => {
+    setLoading(true);
+    try {
+      const res = await loginWithGoogle(credentialResponse.credential);
+      if (res?.action === 'REQUIRE_COLLEGE') {
+        toast('Almost there! Please select your college to finish signing up.', { icon: '🎓' });
+        navigate('/register', { state: { googleData: res.data, credential: credentialResponse.credential } });
+      } else {
+        toast.success('Welcome back!');
+        navigate('/');
+      }
+    } catch (error) {
+      toast.error(error.message || 'Google Sign-In failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    toast.error('Google Sign-In failed');
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,13 +69,35 @@ const LoginPage = () => {
       >
         <div className="glass-card p-8">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6">
             <h1 className="text-3xl font-display font-bold text-white mb-2">
               Welcome Back
             </h1>
             <p className="text-gray-400">
               Sign in to continue to your account
             </p>
+          </div>
+
+          <div className="flex justify-center mb-6">
+            <GoogleLogin
+              onSuccess={handleGoogleSuccess}
+              onError={handleGoogleError}
+              shape="pill"
+              theme="outline"
+              size="large"
+              text="continue_with"
+              context="use"
+              width="100%"
+            />
+          </div>
+
+          <div className="relative mb-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-700"></div>
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 text-gray-400" style={{ background: 'inherit' }}>Or continue with email</span>
+            </div>
           </div>
 
           {/* Form */}

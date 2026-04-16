@@ -11,6 +11,7 @@ const {
   logout,
   forgotPassword,
   resetPassword,
+  googleAuth,
 } = require('../controllers/authController');
 const { protect } = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
@@ -93,5 +94,6 @@ router.put('/password', protect, updatePassword);
 router.post('/logout', protect, logout);
 router.post('/forgot-password', authLimiter, forgotPassword);
 router.put('/reset-password/:token', resetPassword);
+router.post('/google', authLimiter, googleAuth);
 
 module.exports = router;

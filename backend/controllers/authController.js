@@ -3,6 +3,9 @@ const College = require('../models/College');
 const crypto = require('crypto');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { sendEmail, emailTemplates } = require('../config/email');
+const { OAuth2Client } = require('google-auth-library');
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -291,4 +294,129 @@ exports.resetPassword = asyncHandler(async (req, res) => {
       success: true,
       message: 'Password reset successful',
     });
+});
+
+// @desc    Auth with Google (Login or provide details for Register)
+// @route   POST /api/auth/google
+// @access  Public
+exports.googleAuth = asyncHandler(async (req, res, next) => {
+  const { credential, collegeId, phone, department, studentId } = req.body;
+
+  if (!credential) {
+    return next(new AppError('Google credential required', 400));
+  }
+
+  // Verify Google Token
+  const ticket = await googleClient.verifyIdToken({
+    idToken: credential,
+    audience: process.env.GOOGLE_CLIENT_ID,
+  });
+  
+  const payload = ticket.getPayload();
+  const { email, name, sub: googleId } = payload;
+
+  // Check if user exists
+  let user = await User.findOne({ email }).populate('college', 'name shortName logo isActive isVerified');
+
+  if (user) {
+    // If user exists, but doesn't have googleId linked, link it
+    if (!user.googleId) {
+      user.googleId = googleId;
+      if (user.authProvider !== 'google') {
+        user.authProvider = 'google';
+      }
+      await user.save();
+    }
+
+    // Check if user is active
+    if (!user.isActive) {
+      return next(new AppError('Your account has been deactivated', 401));
+    }
+
+    if (!user.college || !user.college.isActive || !user.college.isVerified) {
+      return next(new AppError('Your college is currently not available', 401));
+    }
+
+    // Generate token and login
+    const token = user.generateAuthToken();
+    return res.status(200).json({
+      success: true,
+      data: {
+        user: user.getPublicProfile(),
+        college: {
+          id: user.college._id,
+          name: user.college.name,
+          shortName: user.college.shortName,
+          logo: user.college.logo,
+        },
+        token,
+      },
+    });
+  }
+
+  // User does NOT exist.
+  // Check if they provided collegeId (this means they are completing registration)
+  if (!collegeId) {
+    // Not enough info to create user. We must ask them for college.
+    return res.status(202).json({
+      success: true,
+      action: 'REQUIRE_COLLEGE',
+      message: 'Please select your college to complete registration',
+      data: { email, name, googleId },
+    });
+  }
+
+  // They provided college details! Check college.
+  const college = await College.findById(collegeId);
+  if (!college) {
+    throw new AppError('College not found', 404);
+  }
+  if (!college.isActive || !college.isVerified) {
+    throw new AppError('This college is not available for registration', 400);
+  }
+
+  // Check email domain restriction
+  if (college.settings.requireEmailDomain && college.settings.emailDomains.length > 0) {
+    const emailDomain = '@' + email.split('@')[1];
+    if (!college.settings.emailDomains.includes(emailDomain)) {
+      throw new AppError(`Please use your college email (${college.settings.emailDomains.join(' or ')})`, 400);
+    }
+  }
+
+  // Create user
+  user = await User.create({
+    name,
+    email,
+    googleId,
+    authProvider: 'google',
+    phone,
+    department,
+    studentId,
+    college: collegeId,
+    isVerified: college.settings.autoApproveUsers,
+  });
+
+  // Fetch with populated college
+  user = await User.findById(user._id).populate('college', 'name shortName logo isActive isVerified');
+
+  // Update college stats
+  await College.findByIdAndUpdate(collegeId, {
+    $inc: { 'stats.totalUsers': 1 },
+  });
+
+  // Generate token and login
+  const token = user.generateAuthToken();
+  res.status(201).json({
+    success: true,
+    data: {
+      user: user.getPublicProfile(),
+      college: {
+        id: user.college._id,
+        name: user.college.name,
+        shortName: user.college.shortName,
+        logo: user.college.logo,
+      },
+      token,
+    },
+  });
 });

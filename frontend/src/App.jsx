@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import Navbar from './components/common/Navbar';
 import { Footer, PageLoader } from './components/common';
+import PWABadge from './components/PWABadge';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -62,6 +63,7 @@ function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <Navbar />
+      <PWABadge />
       <main className="flex-1 pt-16">
         <Routes>
           {/* Public Routes */}

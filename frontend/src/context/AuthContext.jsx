@@ -56,6 +56,28 @@ export const AuthProvider = ({ children }) => {
     return user;
   };
 
+  const loginWithGoogle = async (credential, additionalData = {}) => {
+    const response = await authAPI.googleLogin({ credential, ...additionalData });
+    
+    // Status 202 means we need more info (e.g., college selection)
+    if (response.status === 202) {
+      return response.data;
+    }
+
+    const { user, token, college } = response.data.data;
+    
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(user));
+    if (college) {
+      localStorage.setItem('selectedCollege', JSON.stringify(college));
+    }
+    
+    setUser(user);
+    setIsAuthenticated(true);
+    
+    return { success: true, user };
+  };
+
   const register = async (userData) => {
     const response = await authAPI.register(userData);
     const { user, token, college } = response.data.data;
@@ -91,6 +113,7 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     isAdmin: user?.role === 'collegeAdmin' || user?.role === 'superAdmin',
     login,
+    loginWithGoogle,
     register,
     logout,
     updateUser,
