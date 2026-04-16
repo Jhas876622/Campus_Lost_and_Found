@@ -15,7 +15,7 @@ const ItemCard = ({ item, index = 0 }) => {
     >
       <Link
         to={`/items/${item._id}`}
-        className="block glass-card-hover overflow-hidden group"
+        className="block glass-card-hover overflow-hidden group shadow-bento"
       >
         {/* Image */}
         <div className="relative h-48 overflow-hidden bg-gray-800">
@@ -23,7 +23,7 @@ const ItemCard = ({ item, index = 0 }) => {
             <img
               src={item.images[0].url}
               alt={item.title}
-              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
@@ -51,7 +51,7 @@ const ItemCard = ({ item, index = 0 }) => {
         {/* Content */}
         <div className="p-4">
           {/* Title */}
-          <h3 className="font-display font-semibold text-white text-lg mb-2 line-clamp-1 group-hover:text-primary-400 transition-colors">
+          <h3 className="font-display font-semibold text-white text-lg mb-2 line-clamp-1 group-hover:text-primary-400 transition-colors drop-shadow-md">
             {item.title}
           </h3>
 
