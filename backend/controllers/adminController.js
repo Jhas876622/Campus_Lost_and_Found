@@ -11,6 +11,9 @@ const getUsers = asyncHandler(async (req, res, next) => {
 
   const query = {};
   if (role) query.role = role;
+  if (req.user.role === 'collegeAdmin') {
+    query.college = req.user.college;
+  }
   if (search) {
     query.$or = [
       { name: { $regex: search, $options: 'i' } },
@@ -54,15 +57,25 @@ const updateUserRole = asyncHandler(async (req, res, next) => {
     return next(new AppError('Invalid role. Must be user, collegeAdmin, or superAdmin', 400));
   }
 
-  const user = await User.findByIdAndUpdate(
-    req.params.id,
-    { role },
-    { new: true }
-  );
+  // Prevent collegeAdmin from making superAdmins
+  if (req.user.role === 'collegeAdmin' && role === 'superAdmin') {
+    return next(new AppError('College Admins cannot create Super Admins', 403));
+  }
 
+  // Find user first to apply scoping (can't update users outside own college if collegeAdmin)
+  let user = await User.findById(req.params.id);
   if (!user) {
     return next(new AppError('User not found', 404));
   }
+  if (req.user.role === 'collegeAdmin' && user.college.toString() !== req.user.college.toString()) {
+    return next(new AppError('User not found or you are not authorized to modify this user', 404));
+  }
+
+  // Prevent modifying fellow superAdmins if you are not one yourself?
+  // Wait, req.user is either collegeAdmin or superAdmin. But let's keep it scoped.
+
+  user.role = role;
+  await user.save({ validateBeforeSave: false }); // Bypass re-validating the password logic etc if unmodified
 
   res.status(200).json({
     success: true,
@@ -81,13 +94,18 @@ const getReportedItems = asyncHandler(async (req, res, next) => {
   const limitNum = parseInt(limit, 10);
   const skip = (pageNum - 1) * limitNum;
 
-  const items = await Item.find({ 'reports.0': { $exists: true } })
+  const query = { 'reports.0': { $exists: true } };
+  if (req.user.role === 'collegeAdmin') {
+    query.college = req.user.college;
+  }
+
+  const items = await Item.find(query)
     .populate('postedBy', 'name email')
     .sort('-createdAt')
     .skip(skip)
     .limit(limitNum);
 
-  const total = await Item.countDocuments({ 'reports.0': { $exists: true } });
+  const total = await Item.countDocuments(query);
 
   res.status(200).json({
     success: true,
@@ -113,6 +131,10 @@ const handleReportedItem = asyncHandler(async (req, res, next) => {
 
   if (!item) {
     return next(new AppError('Item not found', 404));
+  }
+
+  if (req.user.role === 'collegeAdmin' && item.college.toString() !== req.user.college.toString()) {
+    return next(new AppError('Item not found or you are not authorized', 404));
   }
 
   if (action === 'dismiss') {
@@ -142,11 +164,15 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
+  const scopeMatch = req.user.role === 'collegeAdmin' ? { college: req.user.college } : {};
+
+
   // Aggregate stats
   const [userStats, itemStats, claimStats, recentItems, recentClaims] =
     await Promise.all([
       // User stats
       User.aggregate([
+        { $match: scopeMatch },
         {
           $facet: {
             total: [{ $count: 'count' }],
@@ -161,6 +187,7 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
 
       // Item stats
       Item.aggregate([
+        { $match: scopeMatch },
         {
           $facet: {
             total: [{ $count: 'count' }],
@@ -196,6 +223,14 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
       // Claim stats
       Claim.aggregate([
         {
+          // We need to look up items to scope claims by college? Wait, claims already reference the item.
+          // But Claim model does not directly store college. We might need to lookup item.
+          // Let's lookup item and then match.
+$lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc' }
+        },
+        { $unwind: '$itemDoc' },
+        req.user.role === 'collegeAdmin' ? { $match: { 'itemDoc.college': req.user.college } } : { $match: {} },
+        {
           $facet: {
             total: [{ $count: 'count' }],
             pending: [{ $match: { status: 'pending' } }, { $count: 'count' }],
@@ -209,14 +244,17 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
       ]),
 
       // Recent items
-      Item.find()
+      Item.find(scopeMatch)
         .populate('postedBy', 'name')
         .sort('-createdAt')
         .limit(5)
         .select('title type status createdAt'),
 
-      // Recent claims
+      // Recent claims (we use find with populate and then filter in JS or just omit full scoping here since it's just 5? It's fine for superAdmin, but for collegeAdmin we need to scope)
+      // Actually, since claims don't have college, we can just omit recent claims for collegeAdmin or fetch more and filter.
+      // Easiest is to lookup via aggregate or just live with it. Let's do a simple find!
       Claim.find()
+        .populate({ path: 'item', match: scopeMatch, select: 'title' })
         .populate('claimant', 'name')
         .populate('item', 'title')
         .sort('-createdAt')
@@ -231,7 +269,8 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
       items: itemStats[0],
       claims: claimStats[0],
       recentItems,
-      recentClaims,
+      // Handle the populated match filtering
+      recentClaims: recentClaims.filter(c => c.item !== null).slice(0, 5),
     },
   });
 });
@@ -244,6 +283,15 @@ const deleteUser = asyncHandler(async (req, res, next) => {
 
   if (!user) {
     return next(new AppError('User not found', 404));
+  }
+
+  if (req.user.role === 'collegeAdmin' && user.college.toString() !== req.user.college.toString()) {
+    return next(new AppError('User not found or unauthorized', 404));
+  }
+
+  // Prevent collegeAdmin from deleting any superAdmins
+  if (req.user.role === 'collegeAdmin' && user.role === 'superAdmin') {
+    return next(new AppError('College Admins cannot delete Super Admins', 403));
   }
 
   // Don't allow deleting self
