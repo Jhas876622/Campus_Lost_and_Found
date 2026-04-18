@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -22,6 +22,18 @@ const Navbar = () => {
   const { user, isAuthenticated, isAdmin, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [selectedCollege, setSelectedCollege] = useState(null);
+
+  useEffect(() => {
+    const collegeStr = localStorage.getItem('selectedCollege');
+    if (collegeStr) {
+      try {
+        setSelectedCollege(JSON.parse(collegeStr));
+      } catch (e) {
+        console.error('Error parsing selected college:', e);
+      }
+    }
+  }, [location.pathname]);
 
   const handleLogout = () => {
     logout();
@@ -48,15 +60,34 @@ const Navbar = () => {
     <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-950/80 backdrop-blur-xl border-b border-gray-800/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow">
-              <Search className="w-5 h-5 text-white" />
-            </div>
-            <span className="font-display font-bold text-xl text-white hidden sm:block">
-              Lost<span className="text-primary-400">&</span>Found
-            </span>
-          </Link>
+          {/* Logo & College Badge */}
+          <div className="flex items-center gap-4 lg:gap-8">
+            <Link to="/" className="flex items-center gap-3 group">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500 to-accent-500 flex items-center justify-center shadow-glow group-hover:shadow-glow-lg transition-shadow">
+                <Search className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-display font-bold text-xl text-white hidden sm:block">
+                Lost<span className="text-primary-400">&</span>Found
+              </span>
+            </Link>
+
+            {/* College Session Badge */}
+            {selectedCollege && (
+              <Link 
+                to="/select-college" 
+                className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-lg transition-colors group cursor-pointer"
+                title="Change College"
+              >
+                <div className="w-5 h-5 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded flex items-center justify-center">
+                  <span className="text-[10px] font-bold text-primary-400">🏫</span>
+                </div>
+                <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors truncate max-w-[120px]">
+                  {selectedCollege.shortName || selectedCollege.name}
+                </span>
+                <ChevronDown className="w-3 h-3 text-gray-500 group-hover:text-white transition-colors" />
+              </Link>
+            )}
+          </div>
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-8">
