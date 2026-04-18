@@ -31,7 +31,10 @@ const Navbar = () => {
         setSelectedCollege(JSON.parse(collegeStr));
       } catch (e) {
         console.error('Error parsing selected college:', e);
+        setSelectedCollege(null);
       }
+    } else {
+      setSelectedCollege(null);
     }
   }, [location.pathname]);
 
@@ -77,12 +80,13 @@ const Navbar = () => {
                 to="/select-college" 
                 className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-lg transition-colors group cursor-pointer"
                 title="Change College"
+                aria-label="Change college"
               >
                 <div className="w-5 h-5 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded flex items-center justify-center">
                   <span className="text-[10px] font-bold text-primary-400">🏫</span>
                 </div>
                 <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors truncate max-w-[120px]">
-                  {selectedCollege.shortName || selectedCollege.name}
+                  {selectedCollege?.shortName || selectedCollege?.name || 'Unknown College'}
                 </span>
                 <ChevronDown className="w-3 h-3 text-gray-500 group-hover:text-white transition-colors" />
               </Link>
@@ -211,6 +215,23 @@ const Navbar = () => {
               className="md:hidden border-t border-gray-800 py-4"
             >
               <div className="flex flex-col gap-2">
+                {selectedCollege && (
+                  <Link
+                    to="/select-college"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="mx-4 flex items-center gap-2 px-3 py-2 bg-white/[0.03] hover:bg-white/[0.08] border border-white/10 rounded-lg transition-colors group"
+                    title="Change College"
+                  >
+                    <div className="w-5 h-5 bg-gradient-to-br from-primary-500/20 to-accent-500/20 rounded flex items-center justify-center">
+                      <span className="text-[10px] font-bold text-primary-400">🏫</span>
+                    </div>
+                    <span className="text-xs font-medium text-gray-300 group-hover:text-white transition-colors truncate max-w-[120px]">
+                      {selectedCollege?.shortName || selectedCollege?.name || 'Unknown College'}
+                    </span>
+                    <ChevronDown className="w-3 h-3 text-gray-500 group-hover:text-white transition-colors ml-auto" />
+                  </Link>
+                )}
+
                 {navLinks.map((link) => (
                   <Link
                     key={link.path}

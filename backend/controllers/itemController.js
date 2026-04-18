@@ -377,11 +377,6 @@ exports.getStats = asyncHandler(async (req, res) => {
                 totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
               },
             },
-            {
-              $addFields: {
-                totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
-              },
-            },
           ],
           byCategory: [
             { $group: { _id: '$category', count: { $sum: 1 } } },
@@ -418,12 +413,10 @@ exports.getStats = asyncHandler(async (req, res) => {
       totalFound: 0,
       totalClaimed: 0,
       totalReturned: 0,
-      totalRedeemed: 0,
     }];
   }
 
   stats[0].totalStats[0].totalClaimed = approvedClaimedCount;
-  stats[0].totalStats[0].totalRedeemed = approvedClaimedCount + (stats[0].totalStats[0].totalReturned || 0);
 
   res.status(200).json({
     success: true,
@@ -448,11 +441,6 @@ exports.getStatsAdmin = asyncHandler(async (req, res) => {
                 totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
                 totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
                 totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
-              },
-            },
-            {
-              $addFields: {
-                totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
               },
             },
           ],
@@ -488,12 +476,10 @@ exports.getStatsAdmin = asyncHandler(async (req, res) => {
       totalFound: 0,
       totalClaimed: 0,
       totalReturned: 0,
-      totalRedeemed: 0,
     }];
   }
 
   stats[0].totalStats[0].totalClaimed = approvedClaimedCount;
-  stats[0].totalStats[0].totalRedeemed = approvedClaimedCount + (stats[0].totalStats[0].totalReturned || 0);
 
   res.status(200).json({
     success: true,

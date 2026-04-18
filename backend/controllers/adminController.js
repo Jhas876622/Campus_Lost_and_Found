@@ -317,7 +317,6 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
         totalFound: byTypeMap.found || 0,
         totalClaimed,
         totalReturned,
-        totalRedeemed: totalClaimed + totalReturned,
 
         pendingReports: itemFacet.reported?.[0]?.count || 0,
 
