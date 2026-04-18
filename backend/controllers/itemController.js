@@ -371,7 +371,13 @@ exports.getStats = asyncHandler(async (req, res) => {
               totalItems: { $sum: 1 },
               totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
               totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
+              totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
               totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+            },
+          },
+          {
+            $addFields: {
+              totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
             },
           },
         ],
@@ -412,7 +418,13 @@ exports.getStatsAdmin = asyncHandler(async (req, res) => {
               totalItems: { $sum: 1 },
               totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
               totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
+              totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
               totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+            },
+          },
+          {
+            $addFields: {
+              totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
             },
           },
         ],

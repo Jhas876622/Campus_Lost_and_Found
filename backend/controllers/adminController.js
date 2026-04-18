@@ -159,8 +159,9 @@ const handleReportedItem = asyncHandler(async (req, res, next) => {
 // @route   GET /api/admin/dashboard
 // @access  Private/Admin
 const getDashboardStats = asyncHandler(async (req, res, next) => {
-  // Get date range for this week
+  // Get date ranges
   const now = new Date();
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
@@ -168,7 +169,7 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
 
 
   // Aggregate stats
-  const [userStats, itemStats, claimStats, recentItems, recentClaims] =
+  const [userStats, itemStats, claimStats, recentUsers, recentItems, recentClaims] =
     await Promise.all([
       // User stats
       User.aggregate([
@@ -176,6 +177,10 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
         {
           $facet: {
             total: [{ $count: 'count' }],
+            today: [
+              { $match: { createdAt: { $gte: dayAgo } } },
+              { $count: 'count' },
+            ],
             thisWeek: [
               { $match: { createdAt: { $gte: weekAgo } } },
               { $count: 'count' },
@@ -192,10 +197,15 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
           $facet: {
             total: [{ $count: 'count' }],
             active: [{ $match: { status: 'active' } }, { $count: 'count' }],
+            today: [
+              { $match: { createdAt: { $gte: dayAgo } } },
+              { $count: 'count' },
+            ],
             thisWeek: [
               { $match: { createdAt: { $gte: weekAgo } } },
               { $count: 'count' },
             ],
+            claimed: [{ $match: { status: 'claimed' } }, { $count: 'count' }],
             returned: [{ $match: { status: 'returned' } }, { $count: 'count' }],
             reported: [{ $match: { isReported: true } }, { $count: 'count' }],
             byType: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
@@ -235,6 +245,10 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
             total: [{ $count: 'count' }],
             pending: [{ $match: { status: 'pending' } }, { $count: 'count' }],
             approved: [{ $match: { status: 'approved' } }, { $count: 'count' }],
+            today: [
+              { $match: { createdAt: { $gte: dayAgo } } },
+              { $count: 'count' },
+            ],
             thisWeek: [
               { $match: { createdAt: { $gte: weekAgo } } },
               { $count: 'count' },
@@ -242,6 +256,12 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
           },
         },
       ]),
+
+      // Recent users
+      User.find(scopeMatch)
+        .sort('-createdAt')
+        .limit(5)
+        .select('name email role createdAt'),
 
       // Recent items
       Item.find(scopeMatch)
@@ -262,12 +282,47 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
         .select('status createdAt'),
     ]);
 
+  const userFacet = userStats[0] || {};
+  const itemFacet = itemStats[0] || {};
+  const claimFacet = claimStats[0] || {};
+
+  const byTypeMap = (itemFacet.byType || []).reduce((acc, curr) => {
+    acc[curr._id] = curr.count;
+    return acc;
+  }, {});
+
+  const totalClaimed = itemFacet.claimed?.[0]?.count || 0;
+  const totalReturned = itemFacet.returned?.[0]?.count || 0;
+
   res.status(200).json({
     success: true,
     data: {
+      stats: {
+        totalUsers: userFacet.total?.[0]?.count || 0,
+        newUsersToday: userFacet.today?.[0]?.count || 0,
+        newUsersThisWeek: userFacet.thisWeek?.[0]?.count || 0,
+
+        totalItems: itemFacet.total?.[0]?.count || 0,
+        newItemsToday: itemFacet.today?.[0]?.count || 0,
+        newItemsThisWeek: itemFacet.thisWeek?.[0]?.count || 0,
+        activeItems: itemFacet.active?.[0]?.count || 0,
+
+        totalLost: byTypeMap.lost || 0,
+        totalFound: byTypeMap.found || 0,
+        totalClaimed,
+        totalReturned,
+        totalRedeemed: totalClaimed + totalReturned,
+
+        pendingReports: itemFacet.reported?.[0]?.count || 0,
+
+        totalClaims: claimFacet.total?.[0]?.count || 0,
+        pendingClaims: claimFacet.pending?.[0]?.count || 0,
+        approvedClaims: claimFacet.approved?.[0]?.count || 0,
+      },
       users: userStats[0],
       items: itemStats[0],
       claims: claimStats[0],
+      recentUsers,
       recentItems,
       // Handle the populated match filtering
       recentClaims: recentClaims.filter(c => c.item !== null).slice(0, 5),

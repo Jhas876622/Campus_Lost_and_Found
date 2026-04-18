@@ -8,7 +8,6 @@ import {
   Users,
   CheckCircle,
   TrendingUp,
-  MapPin,
   Clock,
   Shield,
   Zap,
@@ -16,7 +15,7 @@ import {
 import { itemsAPI } from '../utils/api';
 import ItemCard from '../components/items/ItemCard';
 import { LoadingSpinner } from '../components/common';
-import { CATEGORIES, LOCATIONS } from '../utils/constants';
+import { CATEGORIES } from '../utils/constants';
 
 const HomePage = () => {
   const [recentItems, setRecentItems] = useState([]);
@@ -168,11 +167,18 @@ const HomePage = () => {
                   <div className="text-sm text-gray-400">Found Items</div>
                 </div>
                 <div className="glass-card p-6 text-center">
+                  <Users className="w-8 h-8 text-yellow-400 mx-auto mb-2" />
+                  <div className="text-3xl font-display font-bold text-white">
+                    {stats.totalStats?.[0]?.totalClaimed || 0}
+                  </div>
+                  <div className="text-sm text-gray-400">Claimed Items</div>
+                </div>
+                <div className="glass-card p-6 text-center">
                   <TrendingUp className="w-8 h-8 text-accent-400 mx-auto mb-2" />
                   <div className="text-3xl font-display font-bold text-white">
-                    {stats.totalStats?.[0]?.totalReturned || 0}
+                    {stats.totalStats?.[0]?.totalRedeemed || 0}
                   </div>
-                  <div className="text-sm text-gray-400">Items Returned</div>
+                  <div className="text-sm text-gray-400">Redeemed Items</div>
                 </div>
               </motion.div>
             )}

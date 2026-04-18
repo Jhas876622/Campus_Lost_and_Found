@@ -11,7 +11,6 @@ import {
   Shield,
   ShieldOff,
   CheckCircle,
-  XCircle,
   Search,
   ChevronLeft,
   ChevronRight,
@@ -175,7 +174,7 @@ const AdminPage = () => {
             ) : dashboard ? (
               <div className="space-y-8">
                 {/* Stats Grid */}
-                <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
                   <div className="glass-card p-6">
                     <div className="flex items-center justify-between mb-4">
                       <Users className="w-8 h-8 text-primary-400" />
@@ -207,9 +206,29 @@ const AdminPage = () => {
                       <TrendingUp className="w-8 h-8 text-green-400" />
                     </div>
                     <p className="text-3xl font-display font-bold text-white">
-                      {dashboard.stats?.totalReturned || 0}
+                      {dashboard.stats?.totalLost || 0}
                     </p>
-                    <p className="text-sm text-gray-400">Items Returned</p>
+                    <p className="text-sm text-gray-400">Lost Items</p>
+                  </div>
+
+                  <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <CheckCircle className="w-8 h-8 text-green-400" />
+                    </div>
+                    <p className="text-3xl font-display font-bold text-white">
+                      {dashboard.stats?.totalFound || 0}
+                    </p>
+                    <p className="text-sm text-gray-400">Found Items</p>
+                  </div>
+
+                  <div className="glass-card p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <TrendingUp className="w-8 h-8 text-emerald-400" />
+                    </div>
+                    <p className="text-3xl font-display font-bold text-white">
+                      {dashboard.stats?.totalRedeemed || 0}
+                    </p>
+                    <p className="text-sm text-gray-400">Redeemed Items</p>
                   </div>
 
                   <div className="glass-card p-6">
