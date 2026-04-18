@@ -1,5 +1,6 @@
 const Item = require('../models/Item');
 const College = require('../models/College');
+const Claim = require('../models/Claim');
 const { AppError, asyncHandler } = require('../middleware/errorHandler');
 const { uploadToCloudinary, deleteFromCloudinary } = require('../config/cloudinary');
 const { getIO } = require('../config/socket');
@@ -360,43 +361,69 @@ exports.getStats = asyncHandler(async (req, res) => {
     collegeId = new mongoose.Types.ObjectId(collegeId);
   }
 
-  const stats = await Item.aggregate([
-    { $match: { college: collegeId } },
-    {
-      $facet: {
-        totalStats: [
-          {
-            $group: {
-              _id: null,
-              totalItems: { $sum: 1 },
-              totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
-              totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
-              totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
-              totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+  const [stats, approvedClaimedItems] = await Promise.all([
+    Item.aggregate([
+      { $match: { college: collegeId } },
+      {
+        $facet: {
+          totalStats: [
+            {
+              $group: {
+                _id: null,
+                totalItems: { $sum: 1 },
+                totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
+                totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
+                totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
+                totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+              },
             },
-          },
-          {
-            $addFields: {
-              totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
+            {
+              $addFields: {
+                totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
+              },
             },
-          },
-        ],
-        byCategory: [
-          { $group: { _id: '$category', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-        ],
-        byLocation: [
-          { $group: { _id: '$location', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-        ],
-        recentItems: [
-          { $sort: { createdAt: -1 } },
-          { $limit: 5 },
-          { $project: { title: 1, type: 1, category: 1, createdAt: 1 } },
-        ],
+          ],
+          byCategory: [
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+          ],
+          byLocation: [
+            { $group: { _id: '$location', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+          ],
+          recentItems: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 5 },
+            { $project: { title: 1, type: 1, category: 1, createdAt: 1 } },
+          ],
+        },
       },
-    },
+    ]),
+    Claim.aggregate([
+      { $match: { status: 'approved' } },
+      { $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc' } },
+      { $unwind: '$itemDoc' },
+      { $match: { 'itemDoc.college': collegeId } },
+      { $group: { _id: '$item' } },
+      { $count: 'count' },
+    ]),
   ]);
+
+  const approvedClaimedCount = approvedClaimedItems[0]?.count || 0;
+
+  if (!stats[0].totalStats || stats[0].totalStats.length === 0) {
+    stats[0].totalStats = [{
+      totalItems: 0,
+      totalLost: 0,
+      totalFound: 0,
+      totalClaimed: 0,
+      totalReturned: 0,
+      totalRedeemed: 0,
+    }];
+  }
+
+  stats[0].totalStats[0].totalClaimed = approvedClaimedCount;
+  stats[0].totalStats[0].totalRedeemed = approvedClaimedCount + (stats[0].totalStats[0].totalReturned || 0);
 
   res.status(200).json({
     success: true,
@@ -408,42 +435,65 @@ exports.getStats = asyncHandler(async (req, res) => {
 // @route   GET /api/items/stats
 // @access  Public/Private
 exports.getStatsAdmin = asyncHandler(async (req, res) => {
-  const stats = await Item.aggregate([
-    {
-      $facet: {
-        totalStats: [
-          {
-            $group: {
-              _id: null,
-              totalItems: { $sum: 1 },
-              totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
-              totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
-              totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
-              totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+  const [stats, approvedClaimedItems] = await Promise.all([
+    Item.aggregate([
+      {
+        $facet: {
+          totalStats: [
+            {
+              $group: {
+                _id: null,
+                totalItems: { $sum: 1 },
+                totalLost: { $sum: { $cond: [{ $eq: ['$type', 'lost'] }, 1, 0] } },
+                totalFound: { $sum: { $cond: [{ $eq: ['$type', 'found'] }, 1, 0] } },
+                totalClaimed: { $sum: { $cond: [{ $eq: ['$status', 'claimed'] }, 1, 0] } },
+                totalReturned: { $sum: { $cond: [{ $eq: ['$status', 'returned'] }, 1, 0] } },
+              },
             },
-          },
-          {
-            $addFields: {
-              totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
+            {
+              $addFields: {
+                totalRedeemed: { $add: ['$totalClaimed', '$totalReturned'] },
+              },
             },
-          },
-        ],
-        byCategory: [
-          { $group: { _id: '$category', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-        ],
-        byLocation: [
-          { $group: { _id: '$location', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-        ],
-        recentItems: [
-          { $sort: { createdAt: -1 } },
-          { $limit: 5 },
-          { $project: { title: 1, type: 1, category: 1, createdAt: 1 } },
-        ],
+          ],
+          byCategory: [
+            { $group: { _id: '$category', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+          ],
+          byLocation: [
+            { $group: { _id: '$location', count: { $sum: 1 } } },
+            { $sort: { count: -1 } },
+          ],
+          recentItems: [
+            { $sort: { createdAt: -1 } },
+            { $limit: 5 },
+            { $project: { title: 1, type: 1, category: 1, createdAt: 1 } },
+          ],
+        },
       },
-    },
+    ]),
+    Claim.aggregate([
+      { $match: { status: 'approved' } },
+      { $group: { _id: '$item' } },
+      { $count: 'count' },
+    ]),
   ]);
+
+  const approvedClaimedCount = approvedClaimedItems[0]?.count || 0;
+
+  if (!stats[0].totalStats || stats[0].totalStats.length === 0) {
+    stats[0].totalStats = [{
+      totalItems: 0,
+      totalLost: 0,
+      totalFound: 0,
+      totalClaimed: 0,
+      totalReturned: 0,
+      totalRedeemed: 0,
+    }];
+  }
+
+  stats[0].totalStats[0].totalClaimed = approvedClaimedCount;
+  stats[0].totalStats[0].totalRedeemed = approvedClaimedCount + (stats[0].totalStats[0].totalReturned || 0);
 
   res.status(200).json({
     success: true,

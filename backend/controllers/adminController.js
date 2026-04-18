@@ -245,6 +245,11 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
             total: [{ $count: 'count' }],
             pending: [{ $match: { status: 'pending' } }, { $count: 'count' }],
             approved: [{ $match: { status: 'approved' } }, { $count: 'count' }],
+            approvedDistinctItems: [
+              { $match: { status: 'approved' } },
+              { $group: { _id: '$item' } },
+              { $count: 'count' },
+            ],
             today: [
               { $match: { createdAt: { $gte: dayAgo } } },
               { $count: 'count' },
@@ -291,7 +296,8 @@ $lookup: { from: 'items', localField: 'item', foreignField: '_id', as: 'itemDoc'
     return acc;
   }, {});
 
-  const totalClaimed = itemFacet.claimed?.[0]?.count || 0;
+  // Claimed should reflect approved claims (distinct items), not only item.status='claimed'.
+  const totalClaimed = claimFacet.approvedDistinctItems?.[0]?.count || 0;
   const totalReturned = itemFacet.returned?.[0]?.count || 0;
 
   res.status(200).json({

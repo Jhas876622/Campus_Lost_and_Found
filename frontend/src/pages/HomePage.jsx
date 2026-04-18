@@ -7,7 +7,6 @@ import {
   Package,
   Users,
   CheckCircle,
-  TrendingUp,
   Clock,
   Shield,
   Zap,
@@ -172,13 +171,6 @@ const HomePage = () => {
                     {stats.totalStats?.[0]?.totalClaimed || 0}
                   </div>
                   <div className="text-sm text-gray-400">Claimed Items</div>
-                </div>
-                <div className="glass-card p-6 text-center">
-                  <TrendingUp className="w-8 h-8 text-accent-400 mx-auto mb-2" />
-                  <div className="text-3xl font-display font-bold text-white">
-                    {stats.totalStats?.[0]?.totalRedeemed || 0}
-                  </div>
-                  <div className="text-sm text-gray-400">Redeemed Items</div>
                 </div>
               </motion.div>
             )}

@@ -226,9 +226,9 @@ const AdminPage = () => {
                       <TrendingUp className="w-8 h-8 text-emerald-400" />
                     </div>
                     <p className="text-3xl font-display font-bold text-white">
-                      {dashboard.stats?.totalRedeemed || 0}
+                      {dashboard.stats?.totalClaimed || 0}
                     </p>
-                    <p className="text-sm text-gray-400">Redeemed Items</p>
+                    <p className="text-sm text-gray-400">Claimed Items</p>
                   </div>
 
                   <div className="glass-card p-6">
