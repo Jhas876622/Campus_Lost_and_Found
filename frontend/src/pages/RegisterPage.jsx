@@ -10,6 +10,8 @@ const RegisterPage = () => {
   const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const googleData = location.state?.googleData;
   const credential = location.state?.credential;
@@ -66,7 +68,7 @@ const RegisterPage = () => {
     setLoading(true);
 
     try {
-      const { confirmPassword, ...data } = formData;
+      const { confirmPassword: _confirmPassword, ...data } = formData;
 
       // Inject collegeId from selected college
       const collegeStr = localStorage.getItem('selectedCollege');
