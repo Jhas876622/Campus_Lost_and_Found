@@ -94,7 +94,7 @@
 | Service | Platform | URL |
 |---|---|---|
 | 🌐 Frontend | Vercel | [campus-lost-and-found-bice.vercel.app](https://campus-lost-and-found-bice.vercel.app/) |
-| ⚙️ Backend API | Render | `https://your-render-app.onrender.com/api` |
+| ⚙️ Backend API | Render |https://campus-lost-and-found-kxlr.onrender.com |
 
 ---
 
