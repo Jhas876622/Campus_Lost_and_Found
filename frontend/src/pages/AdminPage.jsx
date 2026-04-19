@@ -92,7 +92,7 @@ const AdminPage = () => {
   const handleUserAction = async () => {
     try {
       if (actionModal.type === 'role') {
-        const newRole = actionModal.currentRole === 'admin' ? 'user' : 'admin';
+        const newRole = actionModal.currentRole === 'collegeAdmin' ? 'user' : 'collegeAdmin';
         await adminAPI.updateUserRole(actionModal.id, newRole);
         setUsers((prev) =>
           prev.map((u) =>
@@ -390,7 +390,7 @@ const AdminPage = () => {
                             <td className="p-4">
                               <span
                                 className={`badge ${
-                                  user.role === 'admin'
+                                  user.role === 'collegeAdmin'
                                     ? 'bg-primary-500/20 text-primary-400 border border-primary-500/30'
                                     : 'bg-gray-500/20 text-gray-400 border border-gray-500/30'
                                 }`}
@@ -418,12 +418,12 @@ const AdminPage = () => {
                                   }
                                   className="btn-ghost !p-2"
                                   title={
-                                    user.role === 'admin'
+                                    user.role === 'collegeAdmin'
                                       ? 'Remove Admin'
                                       : 'Make Admin'
                                   }
                                 >
-                                  {user.role === 'admin' ? (
+                                  {user.role === 'collegeAdmin' ? (
                                     <ShieldOff className="w-4 h-4 text-yellow-400" />
                                   ) : (
                                     <Shield className="w-4 h-4 text-primary-400" />
@@ -620,7 +620,7 @@ const AdminPage = () => {
         message={
           actionModal.type === 'role'
             ? `Are you sure you want to ${
-                actionModal.currentRole === 'admin' ? 'remove admin rights from' : 'make admin'
+                actionModal.currentRole === 'collegeAdmin' ? 'remove admin rights from' : 'make admin'
               } ${actionModal.name}?`
             : `Are you sure you want to delete ${actionModal.name}? This action cannot be undone.`
         }

@@ -31,12 +31,27 @@ const getUsers = asyncHandler(async (req, res, next) => {
     .skip(skip)
     .limit(limitNum);
 
+  const userIds = users.map((u) => u._id);
+  const itemCounts = await Item.aggregate([
+    { $match: { postedBy: { $in: userIds } } },
+    { $group: { _id: '$postedBy', count: { $sum: 1 } } },
+  ]);
+  const countMap = itemCounts.reduce((acc, row) => {
+    acc[row._id.toString()] = row.count;
+    return acc;
+  }, {});
+
+  const usersWithCounts = users.map((u) => ({
+    ...u.toObject(),
+    itemsCount: countMap[u._id.toString()] || 0,
+  }));
+
   const total = await User.countDocuments(query);
 
   res.status(200).json({
     success: true,
     data: {
-      users,
+      users: usersWithCounts,
       pagination: {
         page: pageNum,
         limit: limitNum,
@@ -138,12 +153,11 @@ const handleReportedItem = asyncHandler(async (req, res, next) => {
   }
 
   if (action === 'dismiss') {
-    item.isReported = false;
-    item.reportReason = null;
+    item.reports = [];
     await item.save();
   } else if (action === 'remove') {
     item.status = 'removed';
-    item.isReported = false;
+    item.reports = [];
     await item.save();
   } else {
     return next(new AppError('Invalid action', 400));
@@ -207,7 +221,7 @@ const getDashboardStats = asyncHandler(async (req, res, next) => {
             ],
             claimed: [{ $match: { status: 'claimed' } }, { $count: 'count' }],
             returned: [{ $match: { status: 'returned' } }, { $count: 'count' }],
-            reported: [{ $match: { isReported: true } }, { $count: 'count' }],
+            reported: [{ $match: { 'reports.0': { $exists: true } } }, { $count: 'count' }],
             byType: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
             byCategory: [
               { $group: { _id: '$category', count: { $sum: 1 } } },
